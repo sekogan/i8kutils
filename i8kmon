@@ -25,6 +25,7 @@ array set config {
     timeout      2
     t_high       80
     poll_ac      1
+    poll_fans    1
     num_configs  5
     0            {{0 0}  -1  60  -1  65}
     1            {{1 0}  50  70  55  75}
@@ -122,29 +123,34 @@ proc read_i8k_status {} {
 
     set status(temp) [eval exec "i8kctl temp"]
 
-    set speed [eval exec "i8kctl speed"]
-    set lspeed [lindex $speed 0]
-    set rspeed [lindex $speed 1]
+    if {$config(poll_fans) != 0} {
+        set speed [eval exec "i8kctl speed"]
+        set lspeed [lindex $speed 0]
+        set rspeed [lindex $speed 1]
 
-    # Calculate fan state from probed fans speeds.
-    # It improve performance as it does not requires reading values all the time from the system,
-    # since reading fan speeds is a slow call that freezes the computer in some Dell laptops models.
-    set status(lstate) 0
-    set status(rstate) 0
-    set ldiff_speed "+inf"
-    set rdiff_speed "+inf"
+        # Calculate fan state from probed fans speeds.
+        # It improve performance as it does not requires reading values all the time from the system,
+        # since reading fan speeds is a slow call that freezes the computer in some Dell laptops models.
+        set status(lstate) 0
+        set status(rstate) 0
+        set ldiff_speed "+inf"
+        set rdiff_speed "+inf"
 
-    # Search for nearest value
-    for {set idx_speed 0}  {$idx_speed < 4} {incr idx_speed} {
-        if {[expr abs($lspeed - [lindex $status(leftspeed) $idx_speed]) < $ldiff_speed]} {
-            set ldiff_speed [expr abs($lspeed - [lindex $status(leftspeed) $idx_speed])]
-            set status(lstate) $idx_speed
+        # Search for nearest value
+        for {set idx_speed 0}  {$idx_speed < 4} {incr idx_speed} {
+            if {[expr abs($lspeed - [lindex $status(leftspeed) $idx_speed]) < $ldiff_speed]} {
+                set ldiff_speed [expr abs($lspeed - [lindex $status(leftspeed) $idx_speed])]
+                set status(lstate) $idx_speed
+            }
+
+            if {[expr abs($rspeed - [lindex $status(rightspeed) $idx_speed]) < $rdiff_speed]} {
+                set rdiff_speed [expr abs($rspeed - [lindex $status(rightspeed) $idx_speed])]
+                set status(rstate) $idx_speed
+            }
         }
-
-        if {[expr abs($rspeed - [lindex $status(rightspeed) $idx_speed]) < $rdiff_speed]} {
-            set rdiff_speed [expr abs($rspeed - [lindex $status(rightspeed) $idx_speed])]
-            set status(rstate) $idx_speed
-        }
+    } else {
+        set lspeed "-"
+        set rspeed "-"
     }
 
     if {$config(poll_ac) != 0} {
