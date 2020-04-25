@@ -46,6 +46,7 @@ array set status {
     ac          0
     t_low       0
     t_high      0
+    last_check_status_time  0
 }
 
 proc read_config {} {
@@ -149,6 +150,13 @@ proc read_i8k_status {} {
             }
         }
     } else {
+        set now [clock seconds]
+        if {$now - $status(last_check_status_time) > $config(timeout)*3} {
+            # Returned from sleep? Reset fans state.
+            set status(lstate) -2
+            set status(rstate) -2
+        }
+        set status(last_check_status_time) $now
         set lspeed "-"
         set rspeed "-"
     }
